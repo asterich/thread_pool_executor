@@ -49,19 +49,19 @@ void test_thread_pool_gemv() {
     std::vector<float> vector(MATRIX_SIZE);
     std::vector<float> result(MATRIX_SIZE);
     
-    for (auto i: iota_view(0z, MATRIX_SIZE * MATRIX_SIZE)) {
+    for (auto i: views::iota(0z, MATRIX_SIZE * MATRIX_SIZE)) {
         matrix[i] = i;
     }
 
-    for (auto i: iota_view(0z, MATRIX_SIZE)) {
+    for (auto i: views::iota(0z, MATRIX_SIZE)) {
         vector[i] = i;
     }
 
     /* single-threaded */
     {
         scoped_timer timer("single-threaded"sv);
-        for (auto i: iota_view(0z, MATRIX_SIZE)) {
-            for (auto j: iota_view(0z, MATRIX_SIZE)) {
+        for (auto i: views::iota(0z, MATRIX_SIZE)) {
+            for (auto j: views::iota(0z, MATRIX_SIZE)) {
                 result[i] += matrix[i * MATRIX_SIZE + j] * vector[j];
             }
         }
@@ -72,11 +72,10 @@ void test_thread_pool_gemv() {
         scoped_timer timer("thread pool, tiled"sv);
         thpool::static_thread_pool pool(THREAD_NUM);
         constexpr auto TILE_SIZE = MATRIX_SIZE / THREAD_NUM;
-        for (auto tile_i: iota_view(0z, MATRIX_SIZE)
-                          | stride(TILE_SIZE)) {
+        for (auto tile_i: views::iota(0z, MATRIX_SIZE) | views::stride(TILE_SIZE)) {
             pool.add_task([tile_i, &matrix, &vector, &result, TILE_SIZE, MATRIX_SIZE] {
-                for (auto i: iota_view(tile_i, std::min(tile_i + TILE_SIZE, MATRIX_SIZE))) {
-                    for (auto j: iota_view(0z, MATRIX_SIZE)) {
+                for (auto i: views::iota(tile_i, std::min(tile_i + TILE_SIZE, MATRIX_SIZE))) {
+                    for (auto j: views::iota(0z, MATRIX_SIZE)) {
                         result[i] += matrix[i * MATRIX_SIZE + j] * vector[j];
                     }
                 }
