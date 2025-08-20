@@ -5,7 +5,8 @@ import std;
 import thread_pool;
 
 namespace stdchro = ::std::chrono;
-using namespace ::std::string_view_literals;
+using namespace std::string_view_literals;
+using namespace std::chrono_literals;
 
 struct scoped_timer {
     
@@ -72,7 +73,8 @@ void test_thread_pool_gemv() {
         scoped_timer timer("thread pool, tiled"sv);
         thpool::static_thread_pool pool(THREAD_NUM);
         constexpr auto TILE_SIZE = MATRIX_SIZE / THREAD_NUM;
-        for (auto tile_i: views::iota(0z, MATRIX_SIZE) | views::stride(TILE_SIZE)) {
+        for (auto tile_i: views::iota(0z, MATRIX_SIZE)
+                        | views::filter([TILE_SIZE](int64_t i) { return i % TILE_SIZE == 0; })) { /* libc++ doesn't have stride */
             pool.add_task([tile_i, &matrix, &vector, &result, TILE_SIZE, MATRIX_SIZE] {
                 for (auto i: views::iota(tile_i, std::min(tile_i + TILE_SIZE, MATRIX_SIZE))) {
                     for (auto j: views::iota(0z, MATRIX_SIZE)) {
@@ -97,8 +99,28 @@ void test_thread_pool_gemv() {
 
 }
 
+void test_thread_pool_scheduler() {
+    thpool::static_thread_pool_scheduler sch(4);
+    stdexec::sender auto snd = stdexec::just()
+                             | stdexec::continues_on(sch.get_scheduler());
+    auto hello_world = [] {
+        std::this_thread::sleep_for(2000ms);
+        std::println("hello world from {}th thread", std::this_thread::get_id());
+    };
+
+    stdexec::sync_wait(
+        stdexec::when_all(
+            snd | stdexec::then(hello_world),
+            snd | stdexec::then(hello_world),
+            snd | stdexec::then(hello_world),
+            snd | stdexec::then(hello_world)
+        ) | stdexec::then([] { std::println("finished"); })
+    );
+}
+
 int main() {
     test_thread_pool_basic();
     test_thread_pool_gemv();
+    test_thread_pool_scheduler();
     return 0;
 }
