@@ -9,7 +9,7 @@ set_policy("build.c++.modules", true)
 set_policy("build.c++.modules.std", true)
 
 add_requires("stdexec", {optional = false})
-add_requires("openmp", {system = true})
+add_requires("openmp", {system = false})
 
 set_runtimes("c++_shared")
 add_cxxflags("-stdlib=libc++")
