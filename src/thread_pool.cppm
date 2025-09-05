@@ -184,21 +184,6 @@ struct scheduler_adaptor {
         return _Sched__{_self};
     }
 
-    scheduler_adaptor() = default;
-
-    /* copy ctor */
-    scheduler_adaptor(const _Sched &other) {
-        other._alloc_thread_pool_if_not();
-        this->_executor = other._executor;
-    }
-
-    /* copy assignment */
-    _Sched &operator=(const _Sched &other) {
-        other._alloc_thread_pool_if_not();
-        this->_executor = other._executor;
-        return *this;
-    }
-
 public:
     template <typename _Sched__>
     requires std::is_same_v<std::remove_cvref_t<_Sched__>, _Sched>
