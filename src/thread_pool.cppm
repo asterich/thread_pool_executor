@@ -93,6 +93,8 @@ struct scheduler_adaptor {
 
         static void __execute_impl(_Sched__ sch__, _Recv &&recv__) {
             try {
+                /* TODO: We may add codes checking stop_token of receiver */
+
                 if constexpr (executor_has_stop<_Executor>) {
                     if (sch__.stopped()) {
                         std::println("thpool set stopped");
