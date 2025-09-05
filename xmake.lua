@@ -3,7 +3,7 @@ add_rules("mode.debug", "mode.release")
 add_rules("plugin.compile_commands.autoupdate", {outputdir = ".vscode"})
 
 set_languages("c++latest")
-set_toolchains("clang")
+set_toolchains("llvm")
 
 set_policy("build.c++.modules", true)
 set_policy("build.c++.modules.std", true)
