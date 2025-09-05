@@ -70,11 +70,11 @@ concept executor_has_stop = requires(T t) {
     { t.stopped() } -> std::convertible_to<bool>;
 };
 
-template <executor_concept _Executor, typename _Derived>
+template <executor_concept _Executor>
 struct scheduler_adaptor {
     struct _None {};
 
-    using _Sched = scheduler_adaptor<_Executor, _Derived>;
+    using _Sched = scheduler_adaptor<_Executor>;
 
     using _compl_sigs = std::conditional_t<
         executor_has_stop<_Executor>,
@@ -86,40 +86,50 @@ struct scheduler_adaptor {
 
     template <typename _Sched__, stdexec::receiver _Recv>
     requires std::is_same_v<std::remove_cv_t<_Sched__>, _Sched>
+          || std::derived_from<std::remove_cv_t<_Sched__>, _Sched>
     struct _operation {
-        _Sched__ &sch_;
+        _Sched__ sch_;
         _Recv recv_;
 
-        void __execute_impl() {
-            if constexpr (executor_has_stop<_Executor>) {
-                if (this->sch_.stopped()) {
-                    std::println("thpool set stopped");
-                    stdexec::set_stopped(this->recv_);
-                    return;
+        static void __execute_impl(_Sched__ sch__, _Recv &&recv__) {
+            try {
+                if constexpr (executor_has_stop<_Executor>) {
+                    if (sch__.stopped()) {
+                        std::println("thpool set stopped");
+                        stdexec::set_stopped(std::forward<_Recv>(recv__));
+                        return;
+                    }
                 }
-            }
 
-            stdexec::set_value(this->recv_);
+                stdexec::set_value(std::forward<_Recv>(recv__));
+            } catch (...) {
+                stdexec::set_error(std::forward<_Recv>(recv__), std::current_exception());
+            }
         }
 
         void start() noexcept {
-            this->sch_.add_task([this]() { __execute_impl(); });
+            this->sch_.add_task(
+                [sch__ = this->sch_, recv__ = std::move(this->recv_)]() mutable {
+                    __execute_impl(sch__, std::move(recv__));
+                });
         }
     };
 
     template <typename _Sched__>
     requires std::is_same_v<std::remove_cv_t<_Sched__>, _Sched>
+          || std::derived_from<std::remove_cv_t<_Sched__>, _Sched>
     struct _env {
         _Sched__ &sch_;
 
         template <typename _Tag>
         auto query(this auto &&_self, stdexec::get_completion_scheduler_t<_Tag>) noexcept {
-            return _self.sch_;
+            return _Sched__{_self.sch_};
         }
     };
 
     template <typename _Sched__>
     requires std::is_same_v<std::remove_cv_t<_Sched__>, _Sched>
+          || std::derived_from<std::remove_cv_t<_Sched__>, _Sched>
     struct _sender {
         using is_sender = void;
         using result_type = _None;
@@ -144,7 +154,6 @@ struct scheduler_adaptor {
 
     template <std::invocable F>
     void add_task(F &&f) {
-        this->_alloc_thread_pool_if_not();
         this->_executor->add_task(std::forward<F>(f));
     }
 
@@ -165,20 +174,34 @@ struct scheduler_adaptor {
         return lhs._executor == rhs._executor;
     }
 
-    _Sched get_scheduler() {
-        this->_alloc_thread_pool_if_not();
-        return _Sched{this->_executor};
+    template <typename _Sched__>
+    requires std::is_same_v<std::remove_cvref_t<_Sched__>, _Sched>
+          || std::derived_from<std::remove_cvref_t<_Sched__>, _Sched>
+    _Sched__ get_scheduler(this _Sched__ &&_self) {
+        _self._alloc_thread_pool_if_not();
+        return _Sched__{_self};
     }
 
-protected:
-    scheduler_adaptor(std::shared_ptr<_Executor> _executor) noexcept {
-        this->_executor = _executor;
+    scheduler_adaptor() = default;
+
+    /* copy ctor */
+    scheduler_adaptor(const _Sched &other) {
+        other._alloc_thread_pool_if_not();
+        this->_executor = other._executor;
     }
 
-protected:
-    void _alloc_thread_pool_if_not() {
-        static_cast<_Derived *>(this)->_alloc_thread_pool_if_not_impl();
+    /* copy assignment */
+    _Sched &operator=(const _Sched &other) {
+        other._alloc_thread_pool_if_not();
+        this->_executor = other._executor;
+        return *this;
     }
+
+public:
+    template <typename _Sched__>
+    requires std::is_same_v<std::remove_cvref_t<_Sched__>, _Sched>
+          || std::derived_from<std::remove_cvref_t<_Sched__>, _Sched>
+    void _alloc_thread_pool_if_not(this _Sched__ &&_self) {}
 
 protected:
     std::shared_ptr<_Executor> _executor;
@@ -186,18 +209,23 @@ protected:
 };
 
 struct static_thread_pool_scheduler
-    : scheduler_adaptor<static_thread_pool, static_thread_pool_scheduler> {
-    using _Base = scheduler_adaptor<static_thread_pool, static_thread_pool_scheduler>;
+    : scheduler_adaptor<static_thread_pool> {
+    using _Self = static_thread_pool_scheduler;
+    using _Base = scheduler_adaptor<static_thread_pool>;
     using completion_signatures = _Base::completion_signatures;
+    using _Base::_Base;
 
 public:
     explicit static_thread_pool_scheduler(int _thread_num)
-        : thread_num_(_thread_num), _Base(nullptr) {}
+        : thread_num_(_thread_num), _Base() {}
 
 public:
-        void _alloc_thread_pool_if_not_impl() {
-            _executor = std::make_shared<static_thread_pool>(this->thread_num_);
+    void _alloc_thread_pool_if_not() {
+        if (_executor) {
+            return;
         }
+        _executor = std::make_shared<static_thread_pool>(this->thread_num_);
+    }
 
 private:
     int thread_num_;
