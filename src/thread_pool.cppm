@@ -78,8 +78,8 @@ struct scheduler_adaptor {
 
     using _compl_sigs = std::conditional_t<
         executor_has_stop<_Executor>,
-        stdexec::completion_signatures<stdexec::set_value_t(), stdexec::set_stopped_t()>,
-        stdexec::completion_signatures<stdexec::set_value_t()>
+        stdexec::completion_signatures<stdexec::set_value_t(), stdexec::set_stopped_t(), stdexec::set_error_t()>,
+        stdexec::completion_signatures<stdexec::set_value_t(), stdexec::set_error_t()>
     >;
 
     using completion_signatures = _compl_sigs;
