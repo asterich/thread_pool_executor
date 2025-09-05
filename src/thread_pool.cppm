@@ -93,7 +93,7 @@ struct scheduler_adaptor {
 
         static void __execute_impl(_Sched__ sch__, _Recv &&recv__) {
             try {
-                /* TODO: We may add codes checking stop_token of receiver */
+                /// TODO: We may add codes checking stop_token of receiver
 
                 if constexpr (executor_has_stop<_Executor>) {
                     if (sch__.stopped()) {
@@ -224,6 +224,8 @@ public:
 public:
     void _alloc_thread_pool_if_not() {
         if (_executor) {
+            using namespace std::string_view_literals;
+            std::println("_executor not null"sv);
             return;
         }
         _executor = std::make_shared<static_thread_pool>(this->thread_num_);
