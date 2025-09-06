@@ -143,14 +143,14 @@ void test_thread_pool_gemv() {
                        | std::views::transform([MATRIX_SIZE, THREAD_NUM, &sch] (auto packed) mutable {
                                auto [matrix_chunk, vector, result_chunk] = packed;
                                auto snd = stdexec::just(matrix_chunk, vector, result_chunk)
-                                       | stdexec::continues_on(sch.get_scheduler())
-                                       | stdexec::then([=] (auto matrix, auto vector, auto result) {
-                                               for (auto i: views::iota(0z, MATRIX_SIZE / THREAD_NUM)) {
-                                                   for (auto j: views::iota(0z, MATRIX_SIZE)) {
-                                                       result[i] += matrix[i * MATRIX_SIZE + j] * vector[j];
-                                                   }
-                                               }
-                                           });
+                                        | stdexec::continues_on(sch.get_scheduler())
+                                        | stdexec::then([=] (auto matrix, auto vector, auto result) {
+                                                for (auto i: views::iota(0z, MATRIX_SIZE / THREAD_NUM)) {
+                                                    for (auto j: views::iota(0z, MATRIX_SIZE)) {
+                                                        result[i] += matrix[i * MATRIX_SIZE + j] * vector[j];
+                                                    }
+                                                }
+                                            });
                                return snd;
                            }
                        );
