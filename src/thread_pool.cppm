@@ -180,15 +180,8 @@ struct scheduler_adaptor {
     requires std::is_same_v<std::remove_cvref_t<_Sched__>, _Sched>
           || std::derived_from<std::remove_cvref_t<_Sched__>, _Sched>
     _Sched__ get_scheduler(this _Sched__ &&_self) {
-        _self._alloc_thread_pool_if_not();
         return _Sched__{_self};
     }
-
-public:
-    template <typename _Sched__>
-    requires std::is_same_v<std::remove_cvref_t<_Sched__>, _Sched>
-          || std::derived_from<std::remove_cvref_t<_Sched__>, _Sched>
-    void _alloc_thread_pool_if_not(this _Sched__ &&_self) {}
 
 protected:
     std::shared_ptr<_Executor> _executor;
@@ -207,10 +200,14 @@ public:
         : thread_num_(_thread_num), _Base() {}
 
 public:
+    _Self get_scheduler() {
+        this->_alloc_thread_pool_if_not();
+        return *this;
+    }
+
+private:
     void _alloc_thread_pool_if_not() {
         if (_executor) {
-            using namespace std::string_view_literals;
-            std::println("_executor not null"sv);
             return;
         }
         _executor = std::make_shared<static_thread_pool>(this->thread_num_);
