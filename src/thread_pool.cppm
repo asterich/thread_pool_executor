@@ -70,6 +70,14 @@ concept executor_has_stop = requires(T t) {
     { t.stopped() } -> std::convertible_to<bool>;
 };
 
+template <
+    typename T,
+    typename U,
+    typename _T_no_cvref = std::remove_cvref_t<T>
+>
+concept same_or_derived_from = std::is_same_v<_T_no_cvref, U>
+                            || std::derived_from<_T_no_cvref, U>;
+
 template <executor_concept _Executor>
 struct scheduler_adaptor {
     struct _None {};
@@ -85,8 +93,7 @@ struct scheduler_adaptor {
     using completion_signatures = _compl_sigs;
 
     template <typename _Sched__, stdexec::receiver _Recv>
-    requires std::is_same_v<std::remove_cv_t<_Sched__>, _Sched>
-          || std::derived_from<std::remove_cv_t<_Sched__>, _Sched>
+    requires same_or_derived_from<_Sched__, _Sched>
     struct _operation {
         _Sched__ sch_;
         _Recv recv_;
@@ -118,8 +125,7 @@ struct scheduler_adaptor {
     };
 
     template <typename _Sched__>
-    requires std::is_same_v<std::remove_cv_t<_Sched__>, _Sched>
-          || std::derived_from<std::remove_cv_t<_Sched__>, _Sched>
+    requires same_or_derived_from<_Sched__, _Sched>
     struct _env {
         _Sched__ &sch_;
 
@@ -130,8 +136,7 @@ struct scheduler_adaptor {
     };
 
     template <typename _Sched__>
-    requires std::is_same_v<std::remove_cv_t<_Sched__>, _Sched>
-          || std::derived_from<std::remove_cv_t<_Sched__>, _Sched>
+    requires same_or_derived_from<_Sched__, _Sched>
     struct _sender {
         using is_sender = void;
         using result_type = _None;
@@ -177,8 +182,7 @@ struct scheduler_adaptor {
     }
 
     template <typename _Sched__>
-    requires std::is_same_v<std::remove_cvref_t<_Sched__>, _Sched>
-          || std::derived_from<std::remove_cvref_t<_Sched__>, _Sched>
+    requires same_or_derived_from<_Sched__, _Sched>
     _Sched__ get_scheduler(this _Sched__ &&_self) {
         return _Sched__{_self};
     }
