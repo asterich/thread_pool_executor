@@ -60,6 +60,16 @@ void test_thread_pool_gemv() {
         vector[i] = i;
     }
 
+    /* warmup */
+    {
+        scoped_timer timer("warmup"sv);
+        for (auto i: views::iota(0z, MATRIX_SIZE)) {
+            for (auto j: views::iota(0z, MATRIX_SIZE)) {
+                result[i] += matrix[i * MATRIX_SIZE + j] * vector[j];
+            }
+        }
+    }
+
     /* single-threaded */
     {
         scoped_timer timer("single-threaded"sv);
